@@ -17,3 +17,5 @@ conn.connect((err) => {
         console.log("Connection with MySQL database created successfully.")
     }
 })
+
+module.exports = conn;
