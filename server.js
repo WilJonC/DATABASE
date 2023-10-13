@@ -18,7 +18,6 @@ class Server {
         this.routes();      //INVOCAION DE LAS RUTAS
     }
 
-    
     middlewares(){
         this.app.use(cors());
         this.app.use(express.json());       //PARA PODER INTERPRETAR EL FORMATO JSON
