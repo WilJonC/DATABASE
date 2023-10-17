@@ -21,6 +21,23 @@ const usersModel = {
                         phone_number,
                         role_id,
                         is_active
-                    ) VALUES (?,?,?,?,?,?,?,?)`
-}
+                    ) VALUES (?,?,?,?,?,?,?,?)`,
+
+                    getByUsername: `
+                    SELECT 
+                        id 
+                    FROM
+                        Users
+                    WHERE
+                        username = ?
+                        `,
+                getByEmail:`
+                    SELECT
+                        id
+                    FROM
+                        Users
+                    WHERE
+                        email = ?`
+                }
+
 module.exports = usersModel;
