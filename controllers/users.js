@@ -257,9 +257,97 @@ const deleteUser = async (req = request, res = response) =>{
         if (conn)con.end()
     }
 }
+
+const updateUser1 = async (req = request, res = response) =>{
+        let conn;
+    
+        const {id} = req.params;
+    
+        const {
+            username, 
+            email, 
+            password, 
+            name, 
+            lastname,
+            phone_number ,
+            role_id,
+            is_active 
+        } =req.body; 
+    
+        //recibe los datos enviados  por postman o etc
+        let user =[
+            username, 
+            email, 
+            password, 
+            name, 
+            lastname,
+            phone_number ,
+            role_id,
+            is_active 
+        ]
+    
+        try{
+            conn = await pool.getConnection();//Conexion a la bd
+    
+    
+            const [userExists] = await conn.query(
+                usersModel.getByID,
+                [id],
+                (err) => { throw err; }
+            );
+    
+            if (!userExists || userExists.is_active === 0) {
+                res.status(404).json({ msg: 'User not found' });
+                return;
+            }
+    if  (username == userExists.username){
+        res.status(409).json({msg: 'Username already exits'});
+        return;
+    }
+    
+    if  (email == userExists.email){
+        res.status(409).json({msg: 'Email already exits'});
+        return;
+    }
+            //contiene la informacion de la  db
+            let oldUser = [
+            userExists.username, 
+            userExists.email, 
+            userExists.password, 
+            userExists.name, 
+            userExists.lastname,
+            userExists.phone_number ,
+            userExists.role_id,
+            userExists.is_active 
+            ]
+    
+    
+            user.forEach((userData,index)=>{
+                if(!userData) {
+                    user[index] = oldUser[index]
+                };
+               
+            }) 
+            const [userUpdated] = conn.query(usersModel.updateRow,[...user, id ],(err) => {
+                throw err;
+            });
+           
+            if(userUpdated.affectedRows == 0){
+                throw new Error('User not updated');
+            }
+    
+            res.json({msg:'User updated successfully',...oldUser});
+        } catch (err) {
+            res.status(400).json(err);
+            //console.log(error);
+            return;
+        } finally {
+            if (conn) conn.end();// Libera la conexión a la base de datos
+        }
+    }
     //validar la informacion necesaria
     //validar que los usuarios existan
     //valifar que los cambios no implican un nombre de usuario duplicado
     //pasar por el id que usuario se debe modificar
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////12/10/2023
-    module.exports = { listUsers, listUserByID, addUser, updateUser, deleteUser };
+    module.exports = { listUsers, listUserByID, addUser, updateUser, updateUser1, deleteUser };
