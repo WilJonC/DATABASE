@@ -1,7 +1,7 @@
 const { request, response } = require('express');
+const bcrypt = require('bcrypt')
 const usersModel = require('../models/users')
 const pool = require('../db');
-const {modeloUsuarios, updateUsuarios} = require("../models/users");
 
 //endpoint
 const listUsers = async (req = request, res = response) => {
@@ -74,40 +74,41 @@ const addUser = async (req = request, res = response) => {
         return;
     }
 
-    const user = [username, email, password, name, lastname, phone_number, role_id, is_active];
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash (password,saltRounds);
+
+    const user = [username, email, passwordHash, name, lastname, phone_number, role_id, is_active]
 
     let conn;
 
     try {
         conn = await pool.getConnection();
-        //***********************************
+
         const [usernameUser] = await conn.query(
             usersModel.getByUsername,
             [username],
-            (err) => { if (err) throw err; }
+            (err) => {if (err) throw err;}
         );
         if (usernameUser) {
-            res.status(409).json({ msg: `User with ${username} already exists` });
+            res.status(409).json({msg: `User with username ${username} alredy exist`});
             return;
         }
-        //****************************
+
         const [emailUser] = await conn.query(
             usersModel.getByEmail,
             [email],
-            (err) => { if (err) throw err; }
+            (err) => {if (err) throw err;}
         );
         if (emailUser) {
-            res.status(409).json({ msg: `User whith ${email} already exists` });
+            res.status(409).json({msg: `User with username ${email} alredy exist`});
             return;
         }
 
-        const userAdded = await conn.query(usersModel.addRow, [...user], (err) => {
+        const userAdded= await conn.query(usersModel.addRow, [...user], (err) => {
             if (err) throw err;
         });
-
-        if (userAdded.affecteRows === 0) throw new Error({ message: 'Failed to add user' });
-        res.json({ msg: 'User added successfully' });
-
+        if (userAdded.affectedRows == 0) throw new Error ({message: 'Failed to add user'});
+        res.json({msg:'User added succesfully'});
     } catch (error) {
         console.log(error);
         res.status(500).json(error);
@@ -115,31 +116,7 @@ const addUser = async (req = request, res = response) => {
         if (conn) conn.end();
     }
 
-    const listUsers = async (req = request, res = response) => {
-        let conn;
-    
-        try {
-            conn = await pool.getConnection();
-    
-            const users = await conn.query(usersModel.getAll, (err) => {
-                if (err) {
-                    throw err
-                }
-            });
-    
-            res.json(users);
-        } catch (error) {
-            console.log(error);
-            res.status(500).json(error);
-        } finally {
-            if (conn) conn.end();
-        }
-    }
-
-
 }
-
-    
 
     //NUEVO ENDPOINT
     const updateUser = async (req, res) => {
@@ -222,6 +199,7 @@ const addUser = async (req = request, res = response) => {
           if (conn) conn.end();
         }
       };
+
 const deleteUser = async (req = request, res = response) =>{
     let conn;
     const {id} = req.params;
@@ -263,6 +241,11 @@ const updateUser1 = async (req = request, res = response) =>{
 
     const {id} = req.params;
 
+    if (isNaN(id)) {
+        res.status(400).json({msg:'Invalid ID'});
+        return;
+    }
+
     const {
         username, 
         email, 
@@ -273,6 +256,12 @@ const updateUser1 = async (req = request, res = response) =>{
         role_id,
         is_active 
     } =req.body; 
+
+    let passwordHash
+    if (password){
+    const saltRounds = 10;
+    passwordHash = await bcrypt.hash(password, saltRounds);
+}
 
     //recibe los datos enviados  por postman o etc
     let user =[
@@ -339,7 +328,10 @@ if (emailUser){
             };
            
         }) 
-        const userUpdated = conn.query(usersModel.updateRow,[...user, id ],(err) => {
+        const userUpdated = conn.query(
+            usersModel.updateRow,
+            [...user, id ],
+            (err) => {
             throw err;
         });
        
@@ -356,9 +348,46 @@ if (emailUser){
         if (conn) conn.end();// Libera la conexión a la base de datos
     }
 }
+const singInUser = async (req = request, res = response) =>{
+    const {username, password} = req.body;
+  
+    let conn;
+  
+    try {
+      conn = await pool.getConnection();
+  
+      const [user] = await conn.query(
+        usersModel.getByUsername,
+        [username],
+        (err) => {throw err;}
+      );
+      if (!user || user.is_active == 0) {
+        res.status(404).json({msg:'Wrong username or password'});
+        return;
+      }
+  
+      const passwordOk = await bcrypt.compare(password, user.password);
+      if (!passwordOk) {
+        res.status(404).json({msg:'Wrong username or password'});
+        return;
+      }
+  
+      delete user.password;
+      delete user.created_at;
+      delete user.updated_at;
+  
+      res.json(user);
+      
+    } catch (error) {
+        console.log(error);
+        res.status(500).json(error);
+      } finally {
+        if (conn) conn.end();
+    }
+  };
     //validar la informacion necesaria
     //validar que los usuarios existan
     //valifar que los cambios no implican un nombre de usuario duplicado
     //pasar por el id que usuario se debe modificar
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////12/10/2023
-    module.exports = { listUsers, listUserByID, addUser, updateUser, updateUser1, deleteUser };
+    module.exports = { listUsers, listUserByID, addUser, updateUser, updateUser1, deleteUser, singInUser, singOutUser};
